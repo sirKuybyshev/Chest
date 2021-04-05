@@ -3,4 +3,4 @@ project(Chest)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(Chest main.cpp tests.h)
+add_executable(Chest main.cpp)
