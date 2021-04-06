@@ -150,4 +150,5 @@ void TestSanity() {
 int main() {
     TestRunner tr;
     RUN_TEST(tr, TestSanity);
+    return EXIT_SUCCESS;
 }

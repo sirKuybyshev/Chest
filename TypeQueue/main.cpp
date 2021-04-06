@@ -5,8 +5,6 @@
 #include <iostream>
 #include <utility>
 
-#define ADD_TYPE(g, queue) AddType<g, typeof(queue)>()
-#define POP_TYPE(queue) std::make_pair(GetHeadT<typeof(queue)>(), PopFrontT<typeof(queue)>())
 
 struct s {};
 struct n {
