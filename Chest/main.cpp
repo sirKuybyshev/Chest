@@ -127,7 +127,7 @@ void swap(Chest &lhs, Chest &rhs) {
 void TestSanity() {
     auto item1 = make_unique<Item>("Hello");
     auto item2 = make_shared<Item>("Hello, there");
-    Chest chest("Small");
+    Chest chest("s");
     chest.AddItem(item1.get());
     chest.AddHandler([](Chest *chest1, Item *item1) {
         cout << "Handled first: " << *item1 << ' ' <<  chest1->GetName() << '\n';
@@ -139,7 +139,7 @@ void TestSanity() {
       cout << "Handled second: " <<*item1 << ' ' <<  chest1->GetName() << '\n';
     };
     chest.AddHandler(lambda);
-    Chest bigChest("Big");
+    Chest bigChest("b");
     bigChest.AddHandler(lambda);
     bigChest.AddItem(&chest);
     chest.AddItem(item3.get());
