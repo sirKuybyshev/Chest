@@ -2,6 +2,7 @@
 // Created by timofey on 4/6/21.
 //
 #include <functional>
+#include <future>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -9,10 +10,12 @@
 #include <utility>
 #include <vector>
 
+#include "test_runner.h"
+
 using namespace std;
 using namespace std::placeholders;
 
-#define ADD_TERM(vault, term) vault.AddTerm(term, &(term)->func_)
+#define ADD_TERM(vault, term) (vault).AddTerm((term), &(term)->func_)
 
 struct BasicTerm {
     virtual ~BasicTerm() = default;
@@ -50,6 +53,7 @@ public:
     explicit Vault(int bucketCount) : bucketCount_(bucketCount), vault_(bucketCount_), mutexes_(bucketCount_){};
     void AddTerm(shared_ptr<BasicTerm> term, void *func) {
         size_t bucket = hash<void *>{}(func) % bucketCount_;
+        lock_guard<mutex> lg(mutexes_[bucket]);
         vault_[bucket].emplace(func, move(term));
     };
     template<typename Type, typename... Args>
@@ -70,8 +74,49 @@ public:
     };
 };
 
+void PromisesAdding(Vault &vault, vector<shared_ptr<Term<int, int>>> &terms, int N, int Z) {
+    using term = Term<int, int>;
+    for (int i = N; i < Z; i++) {
+        function<int(int)> lambda = [i](int x) {
+            cout << x << ' ' << i << '\n';
+            return x + i;
+        };
+        terms[i] = make_shared<term>(lambda);
+        ADD_TERM(vault, terms[i]);
+    }
+}
+void PromisesExtracting(Vault &vault, vector<shared_ptr<Term<int, int>>> &terms, int N, int Z) {
+    using term = Term<int, int>;
+    for (int i = N; i < Z; i++) {
+        (*vault.ExtractTerm(terms[i]))(i);
+    }
+}
 
-int main() {
+
+void TestConcurrency() {
+    using term = Term<int, int>;
+    using termPtr = shared_ptr<term>;
+    vector<termPtr> terms(10'000);
+    Vault vault;
+    {//Оборачиваем futures для ожидания окончания выполнения via destructor
+        vector<future<void>> futures;
+        for (int i = 0; i < terms.size(); i += terms.size() / 4) {
+            int N = i;
+            int Z = i + terms.size() / 4;
+            futures.push_back(async([&vault, &terms, N, Z]() { PromisesAdding(ref(vault), ref(terms), N, Z); }));
+        }
+    }
+    {
+        vector<future<void>> futures;
+        for (int i = 0; i < terms.size(); i += terms.size() / 4) {
+            int N = i;
+            int Z = i + terms.size() / 4;
+            futures.push_back(async([&vault, &terms, N, Z]() { PromisesExtracting(ref(vault), ref(terms), N, Z); }));
+        }
+    }
+}
+
+void TestSanity() {
     function<int(int)> lambda = [](int x) {
         cout << x << '\n';
         return x;
@@ -87,5 +132,11 @@ int main() {
     ADD_TERM(vault, term1);
     auto term2 = vault.ExtractTerm(term1);
     cout << (*term2)(10, 10) << '\n';
+}
+
+int main() {
+    TestRunner tr;
+    RUN_TEST(tr, TestSanity);
+    RUN_TEST(tr, TestConcurrency);
     return EXIT_SUCCESS;
 }
